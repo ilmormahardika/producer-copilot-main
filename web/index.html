@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Producer Co-pilot</title>
+  <meta name="description" content="An AI agent team proposes fact-checked broadcast graphics from a live synthetic football match. You decide what goes on air.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <a class="skip" href="#queue-panel">Skip to the decision queue</a>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="tally-dot" aria-hidden="true"></span>
+      <div>
+        <div class="brand-name">Producer Co-pilot</div>
+        <div class="brand-sub">AI agents propose. You decide what goes on air.</div>
+      </div>
+    </div>
+
+    <div class="scorebug" id="scorebug" aria-live="polite"></div>
+
+    <div class="transport">
+      <button id="btn-play" class="btn primary" type="button">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path id="play-ico" d="M8 5v14l11-7z"/></svg>
+        <span id="play-label">Start match</span>
+      </button>
+      <div class="seg" role="group" aria-label="Replay speed">
+        <button type="button" data-speed="5" title="Closest to live: best for the commentator">5×</button>
+        <button type="button" data-speed="15">15×</button>
+        <button type="button" data-speed="30">30×</button>
+        <button type="button" data-speed="60">60×</button>
+      </div>
+      <button id="btn-sound" class="btn icon" type="button" aria-pressed="false" title="Stadium sound">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path id="sound-waves" d="M16 9c1.2 1.6 1.2 4.4 0 6M18.5 6.5c2.6 3 2.6 8 0 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path id="sound-x" d="M16 9.5l5 5M21 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <span class="sr-only" id="sound-label">Turn stadium sound on</span>
+      </button>
+      <button id="btn-settings" class="btn icon" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="settings" title="Settings">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8.4 4.6-.1-2.2 2-1.6-2-3.4-2.4.8a8 8 0 0 0-1.9-1.1L15.5 3h-4L11 5.6a8 8 0 0 0-1.9 1.1l-2.4-.8-2 3.4 2 1.6-.1 2.2-2 1.6 2 3.4 2.4-.8c.6.5 1.2.8 1.9 1.1l.5 2.6h4l.5-2.6a8 8 0 0 0 1.9-1.1l2.4.8 2-3.4-2-1.6Z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+      </button>
+      <div class="popover" id="settings" hidden>
+        <label class="field">Club channel follows
+          <select id="club"></select>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="faults">
+          <span class="track" aria-hidden="true"></span>
+          <span>Fault test <small>Corrupts one number in every first draft so you can watch the Fact Checker catch it.</small></span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="voice">
+          <span class="track" aria-hidden="true"></span>
+          <span>Commentator voice <small>Live play-by-play built from the match data: passes, tackles, chances, goals and stats, plus every graphic you put on air. Uses your browser's built-in voice.</small></span>
+        </label>
+        <button id="btn-reset" class="btn ghost" type="button">Restart match</button>
+        <p class="model" id="model-badge"></p>
+      </div>
+    </div>
+  </header>
+
+  <div class="timeline" id="timeline" aria-hidden="true"><div class="fill" id="timeline-fill"></div><span class="ht-mark">HT</span></div>
+
+  <main class="layout">
+    <section class="program" aria-labelledby="program-title">
+      <div class="panel monitor-panel">
+        <div class="panel-head">
+          <h2 id="program-title">Program <span class="onair" id="onair" hidden>On air</span></h2>
+          <div class="seg feed-switch" id="feed-tabs" role="tablist" aria-label="Output feed"></div>
+        </div>
+        <div class="monitor view-3d" id="monitor">
+          <div class="stadium" aria-hidden="true">
+            <div class="stand"></div>
+            <div class="lights"><span></span><span></span><span></span><span></span></div>
+          </div>
+          <div class="pitch-stage">
+            <svg id="pitch" viewBox="-4 -4 113 76" class="pitch" role="img" aria-label="Last ten events on the pitch"></svg>
+          </div>
+          <div class="break-card" id="break-card" hidden aria-live="polite"></div>
+          <div class="goal-pop" id="goal-pop" hidden aria-live="assertive"></div>
+          <button class="view-toggle" id="btn-view" type="button" aria-pressed="true" title="Switch between broadcast camera and top-down view">3D camera</button>
+          <div class="screen-bug" id="screen-bug"></div>
+          <div class="ball-now" id="ball-now" aria-live="off"></div>
+        </div>
+        <div class="onair-strip" id="onair-strip">
+          <div class="screen-gfx" id="screen-gfx"></div>
+          <p class="strip-empty" id="strip-empty">Nothing on air. Graphics you approve appear here, so the pitch stays clear.</p>
+        </div>
+        <div class="feed-compare" id="feed-compare" hidden></div>
+        <p class="feed-desc" id="feed-desc"></p>
+      </div>
+
+      <div class="panel fan-panel" id="fan-panel">
+        <div class="panel-head">
+          <h2>Fan app · Ask the Match <span class="badge-new">AI agent</span></h2>
+          <span class="muted small">Answers only from the live match, up to this minute. Any language.</span>
+        </div>
+        <div class="chips" id="fan-chips">
+          <button type="button" class="chip-q">What happened in the last 5 minutes?</button>
+          <button type="button" class="chip-q">Who has made the best decisions so far?</button>
+          <button type="button" class="chip-q">How is Northgate's number 9 playing?</button>
+          <button type="button" class="chip-q">Kenapa Riverside kalah dominan?</button>
+        </div>
+        <form class="ask-form" id="ask-form" autocomplete="off">
+          <input id="ask-input" type="text" maxlength="300" placeholder="Ask about any minute, player or team…" aria-label="Ask a question about the match">
+          <button class="btn primary" type="submit" id="ask-btn">Ask</button>
+        </form>
+        <ol class="answers" id="answers" aria-live="polite"></ol>
+      </div>
+
+      <div class="panel agents-panel">
+        <div class="panel-head">
+          <h2>Agent team</h2>
+          <span class="muted small" id="agents-status">Waiting for the first moment</span>
+        </div>
+        <ol class="pipeline" id="pipeline"></ol>
+      </div>
+
+      <div class="panel tabs-panel">
+        <div class="tabs" role="tablist" aria-label="Match details">
+          <button role="tab" type="button" aria-selected="true" data-tab="stats">Match stats</button>
+          <button role="tab" type="button" aria-selected="false" data-tab="lens">Decision Lens · MOTM</button>
+          <button role="tab" type="button" aria-selected="false" data-tab="events">Event log</button>
+          <button role="tab" type="button" aria-selected="false" data-tab="package">Studio package</button>
+          <button role="tab" type="button" aria-selected="false" data-tab="audit">Audit log</button>
+        </div>
+        <div class="tab" data-pane="stats">
+          <div class="momentum" id="momentum"></div>
+          <div class="statgrid" id="statbars"></div>
+          <div class="lineups" id="lineups"></div>
+          <p class="muted small">All figures are computed in code from synthetic events. xG and speeds are values of the synthetic simulation, not real tracking data.</p>
+        </div>
+        <div class="tab" data-pane="lens" hidden>
+          <p class="muted small lens-note">Was each pass the best choice? Every pass is compared with the options the passer had, using a simplified expected-threat model. Teammate positions are <b>estimated from the formation</b>, not tracked, so treat these as indicators.</p>
+          <div class="motm-box" id="motm-box"></div>
+          <div class="lens-grid">
+            <div><h3>Moments</h3><ol class="lens-flags" id="lens-flags"><li class="muted">Flags appear as the match is played.</li></ol></div>
+            <div><h3>Vision score</h3><div id="vision-board" class="vision-board"><p class="muted small">Players need 8 rated passes.</p></div></div>
+          </div>
+        </div>
+        <div class="tab" data-pane="events" hidden><ol class="ticker" id="ticker"></ol></div>
+        <div class="tab" data-pane="package" hidden>
+          <div class="package" id="package"><p class="muted">A half-time and full-time rundown with a presenter script is built automatically.</p></div>
+          <button id="btn-package" class="btn ghost" type="button">Build rundown now</button>
+        </div>
+        <div class="tab" data-pane="audit" hidden><ol class="audit" id="audit"></ol></div>
+      </div>
+    </section>
+
+    <section class="decisions" id="queue-panel" aria-labelledby="queue-title">
+      <div class="panel queue-panel">
+        <div class="panel-head">
+          <h2 id="queue-title">Your decisions <span class="count" id="pending-count">0</span></h2>
+          <span class="muted small kb-hint"><kbd>A</kbd> approve · <kbd>R</kbd> reject</span>
+        </div>
+        <div id="welcome" class="welcome">
+          <h3>Run the graphics desk for a live match</h3>
+          <ol class="steps">
+            <li><b>Start the match.</b> A synthetic game replays at 15× speed.</li>
+            <li><b>Agents watch and propose.</b> They pick the moment, write the graphic and fact-check every number.</li>
+            <li><b>You decide.</b> Approve to put it on air in three feeds, edit it, or reject it.</li>
+          </ol>
+          <button class="btn primary big" type="button" data-start>Start match</button>
+          <p class="muted small">Fictional teams and players. Not official Premier League data.</p>
+        </div>
+        <div id="queue" class="queue"></div>
+        <details class="history" id="history-wrap">
+          <summary>Decided <span id="history-count">0</span></summary>
+          <div id="history" class="history-list"></div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+  <script src="/static/sound.js"></script>
+  <script src="/static/commentary.js"></script>
+  <script src="/static/app.js"></script>
+  <script src="/static/fan.js"></script>
+  <script src="/static/demo.js"></script>
+</body>
+</html>
